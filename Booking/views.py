@@ -8,6 +8,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from Booking.forms import FlightForm, TicketForm
 from Booking.models import Flight, Ticket
 from django.db.models import F
+from django.http import Http404
 
 
 # Create your views here.
@@ -19,18 +20,37 @@ def signupuser(request):
     if request.method=="GET":
         return render(request, 'signupuser.html', {"form":UserCreationForm()})
     else:
-        if request.POST['password1']==request.POST['password2']:
-            try:
-                user= User.objects.create_user(request.POST['username'],password=request.POST['password1'])
-                user.save()
-                #Log in 
-                login(request, user)
-                return redirect('currentflights')
+        password1=request.POST['password1']
+        password2=request.POST['password2']
+        if password1==password2:
+            if len(password1)<8:
+                return render(request, 'signupuser.html', {"form":UserCreationForm(),"error":"Password is too short."})
+            else:
+                letter,number,character=0,0,0
+                valid=False
+                for c in password1:
+                    if c.isdigit():
+                        number=1
+                    elif c.isalpha():
+                        letter=1
+                    elif c is not ' ':
+                        character=1
+                    if letter==1 and number==1 and character==1:
+                        valid=True
+                        break
+                if valid==True:
+                    try:
+                        user= User.objects.create_user(request.POST['username'],password=request.POST['password1'])
+                        user.save()
+                        #Log in 
+                        login(request, user)
+                        return redirect('currentflights')
 
-            except IntegrityError:
-                #Username exists
-                return render(request, 'signupuser.html', {"form":UserCreationForm(),"error":" That username alreasy exists. Please choose another username."})
-
+                    except IntegrityError:
+                        #Username exists
+                        return render(request, 'signupuser.html', {"form":UserCreationForm(),"error":" That username alreasy exists. Please choose another username."})
+                else:
+                    return render(request, 'signupuser.html', {"form":UserCreationForm(),"error":"Your password must have atleast 1 letter, 1 digit, and 1 character."})
         else:
             #Passwords did not match 
             return render(request, 'signupuser.html', {"form":UserCreationForm(),"error":"Passwords did not match."})
@@ -52,7 +72,6 @@ def logoutuser(request):
         logout(request)
         return redirect('home')
 
-
 @staff_member_required
 def createflight(request):
     if request.method=="GET":
@@ -69,9 +88,12 @@ def createflight(request):
 
 @staff_member_required
 def deleteflight(request, pk):
-    flight=get_object_or_404(Flight, pk=pk,)
-    if request.method=="POST":
-        flight.delete()
+    try:
+        flight=get_object_or_404(Flight, pk=pk,)
+        if request.method=="POST":
+            flight.delete()
+            return redirect('currentflights')
+    except Http404:
         return redirect('currentflights')
 
 @login_required
@@ -90,63 +112,80 @@ def searchflights(request,flag):
 
 @staff_member_required
 def deleteflight(request, pk):
-    flight=get_object_or_404(Flight, pk=pk)
-    tickets=Ticket.objects.filter(deleted=0, flight=flight)
-    for ticket in tickets:
-        ticket.deleted=1
-        ticket.delete()
-    flight.deleted=1
-    if request.method=="POST":
-        flight.delete()
+    try:
+        flight=get_object_or_404(Flight, pk=pk)
+        tickets=Ticket.objects.filter(deleted=0, flight=flight)
+        for ticket in tickets:
+            ticket.deleted=1
+            ticket.delete()
+        flight.deleted=1
+        if request.method=="POST":
+            flight.delete()
+            return redirect('currentflights')
+    except Http404:
         return redirect('currentflights')
 
 @login_required
 def viewflight(request, pk):
-    flight=get_object_or_404(Flight, pk=pk)
-    if request.method=="GET":
-        form=FlightForm(instance=flight)
-        if request.user.is_superuser:
-            return render(request, 'admin/viewflight.html', {"flight":flight,"form":form} )
-        return render(request, 'viewflight.html', {"flight":flight,"form":form} )
-    else:
-        try:
-            form=FlightForm(request.POST, instance=flight)
-            form.save()
-            return redirect('currentflights')
-        except ValueError:
+    try:
+        flight=get_object_or_404(Flight, pk=pk)
+        if request.method=="GET":
+            form=FlightForm(instance=flight)
             if request.user.is_superuser:
-                return render(request, 'admin/viewflight.html', {"flight":flight,"form":form,"error":"Bad information. Try again."} )
-            return render(request, 'viewflight.html', {"flight":flight,"form":form,"error":"Bad information. Try again."} )
+                return render(request, 'admin/viewflight.html', {"flight":flight,"form":form} )
+            return render(request, 'viewflight.html', {"flight":flight,"form":form} )
+        else:
+            try:
+                form=FlightForm(request.POST, instance=flight)
+                form.save()
+                return redirect('currentflights')
+            except ValueError:
+                if request.user.is_superuser:
+                    return render(request, 'admin/viewflight.html', {"flight":flight,"form":form,"error":"Bad information. Try again."} )
+                return render(request, 'viewflight.html', {"flight":flight,"form":form,"error":"Bad information. Try again."} )
+    except Http404:
+        return redirect('currentflights')
 
 @login_required
 def bookticket(request, pk):
-    flight=get_object_or_404(Flight, pk=pk)     
-    if request.method=="GET":
-        return render(request, 'bookticket.html', {"flight":flight,"form":TicketForm()})
-    else:
-        try:
-            form=TicketForm(request.POST)
-            ticket=form.save(commit=False)
-            ticket.user=request.user
-            flight.available-=1
-            flight.booked+=1
-            ticket.flight=flight
-            ticket.save()
-            flight.save()
-            return redirect('mytickets')
-        except ValueError:
-            return render(request, 'bookticket.html', {"flight":flight,"form":TicketForm(), 'error':'Bad data passed in. Try again.'})
+    try:
+        flight=get_object_or_404(Flight, pk=pk)     
+        if request.method=="GET":
+            return render(request, 'bookticket.html', {"flight":flight,"form":TicketForm()})
+        else:
+            try:
+                form=TicketForm(request.POST)
+                ticket=form.save(commit=False)
+                ticket.user=request.user
+                flight.available-=1
+                flight.booked+=1
+                ticket.flight=flight
+                ticket.save()
+                flight.save()
+                return redirect('mytickets')
+            except ValueError:
+                return render(request, 'bookticket.html', {"flight":flight,"form":TicketForm(), 'error':'Bad data passed in. Try again.'})
+    except Http404:
+        return redirect('mytickets')
 
 @login_required
 def cancelticket(request, pk):
-    ticket=get_object_or_404(Ticket, pk=pk)
-    ticket.deleted=1
-    if request.method=="POST":
-        flight=ticket.flight
-        flight.available+=1
-        flight.booked-=1
-        flight.save()
-        ticket.delete()
+    try:
+        ticket=get_object_or_404(Ticket, pk=pk)
+        #render(request, 'viewticket.html', {"error":"Please confirm again to cancel."})
+        ticket.deleted=1
+        if request.method=="POST":
+            flight=ticket.flight
+            flight.available+=1
+            flight.booked-=1
+            flight.save()
+            ticket.delete()
+            if request.user.is_superuser:
+                return redirect('alltickets')
+            return redirect('mytickets')
+    except Http404:
+        if request.user.is_superuser:
+            return redirect('alltickets')
         return redirect('mytickets')
 
 @login_required
@@ -161,21 +200,26 @@ def alltickets(request):
 
 @login_required
 def viewticket(request, pk):
-    ticket=get_object_or_404(Ticket, pk=pk)
-    if request.method=="GET":
-        form=TicketForm(instance=ticket)
+    try:
+        ticket=get_object_or_404(Ticket, pk=pk)
+        if request.method=="GET":
+            form=TicketForm(instance=ticket)
+            if request.user.is_superuser:
+                return render(request, 'admin/viewticket.html', {"ticket":ticket,"form":form} )
+            return render(request, 'viewticket.html', {"ticket":ticket,"form":form} )
+        else:
+            try:
+                form=TicketForm(request.POST, instance=ticket)
+                form.save()
+                if request.user.is_superuser:
+                    return redirect('alltickets')
+                return redirect('mytickets')
+            except ValueError:
+                if request.user.is_superuser:
+                    return render(request, 'admin/viewticket.html', {"ticket":ticket,"form":form,"error":"Bad information. Try again."} )
+                return render(request, 'viewticket.html', {"ticket":ticket,"form":form,"error":"Bad information. Try again."} )
+    except Http404:
         if request.user.is_superuser:
-            return render(request, 'admin/viewticket.html', {"ticket":ticket,"form":form} )
-        return render(request, 'viewticket.html', {"ticket":ticket,"form":form} )
-    else:
-        try:
-            form=TicketForm(request.POST, instance=ticket)
-            form.save()
-            if request.user.is_superuser:
-                return redirect('alltickets')
-            return redirect('mytickets')
-        except ValueError:
-            if request.user.is_superuser:
-                return render(request, 'admin/viewticket.html', {"ticket":ticket,"form":form,"error":"Bad information. Try again."} )
-            return render(request, 'viewticket.html', {"ticket":ticket,"form":form,"error":"Bad information. Try again."} )
+            return redirect('alltickets')
+        return redirect('mytickets')
 

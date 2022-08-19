@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-5">
+            <h2>Ticket Details: {{ ticket.flight.code }}</h2><br>
+            {{ ticket.flight.origin}} to {{ ticket.flight.destination }}<br>
+            Departure: {{ ticket.flight.date}} {{ ticket.flight.time }}<br>
+            Booked at {{ ticket.date }}
+        </div>
+    </div>
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-5">
+            {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error }}
+                </div>
+            {% endif %}
+            <form method="POST">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="code">Flight Code:</label>  {{ ticket.flight.code }}
+                    <!--<input type="text" name="code" class="form-control" id="code" required>-->
+                </div>
+                <div class="form-group">
+                    <label for="origin">Origin:</label> {{ ticket.flight.origin }}
+                    <!-- <input type="text" name="origin" class="form-control" id="origin" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="destination">Destination:</label>    {{ ticket.flight.destination }}
+                    <!-- <input type="text" name="destination" class="form-control" id="destination" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="date">Departure Date:</label>    {{ ticket.flight.date }}
+                    <!-- <input type="date" name="date" class="form-control" id="date" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="time">Departure Time:</label>    {{ ticket.flight.time }}
+                    <!-- <input type="time" name="time" class="form-control" id="time" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="first_name">First Name:</label>     {{ ticket.first_name }}
+                    <!-- <input type="text" name="first_name" class="form-control" id="first_name" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name:</label>    {{ ticket.last_name }}
+                    <!-- <input type="text" name="last_name" class="form-control" id="last_name" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="gender">Gender:</label>     {{ ticket.gender }}
+                    <!-- <input type="text" name="gender" class="form-control" id="gender" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="email">Email:</label>   {{ ticket.email }}
+                    <!-- <input type="email" name="email" class="form-control" id="email" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="contact">Phone Number:</label>      {{ ticket.contact }}
+                    <!-- <input type="text" name="contact" class="form-control" id="contact" required> -->
+                </div>
+                <div class="form-group">
+                    <label for="aaddress">Address:</label>      {{ ticket.address }}
+                    <!-- <textarea name="address" class="form-control" id="address" ></textarea> -->
+                </div>
+
+                <!-- <button type="button" class="btn btn-success" onclick="$('#book').click()">Book</button> -->
+                <button type="button" class="btn btn-danger" onclick="$('#cancel').click()">Cancel</button>
+            </form>
+        </div>
+    </div>
+    <form style='display: none;' method="POST" action="{% url 'cancelticket' ticket.id %}">
+        {% csrf_token %}
+        <button id="cancel" type="submit">Cancel</button>
+    </form>
+{% endblock %}

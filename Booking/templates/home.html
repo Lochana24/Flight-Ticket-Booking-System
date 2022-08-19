@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<br>
+    <br>
+    <br>
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-7 text-center">
+
+                 <h1>Welcome to FlyBook!</h1>
+            <p>Click on <b>Start</b> to <u>book</u> a <i>flight</i>. </p>
+        <a role="button" class="btn btn-primary btn-lg" href="{% url 'signupuser' %}">Start</a>
+        </div> 
+    </div>
+    <div class="text-center">
+        <img src="{% static 'ticket.png' %}" width="400" height="400">
+    </div>
+    
+{% endblock %}
